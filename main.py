@@ -85,3 +85,27 @@ class Chromosome:
 
     def copy(self) -> 'Chromosome':
         return Chromosome(self.genes.copy(), self.instance)
+
+######Selection Methods
+    def tournament_selection(population: List[Chromosome], tournament_size: int = 3) -> Chromosome:
+    tournament = random.sample(population, min(tournament_size, len(population)))
+    return min(tournament, key=lambda c: c.fitness)
+
+
+def roulette_wheel_selection(population: List[Chromosome]) -> Chromosome:
+    max_fitness = max(c.fitness for c in population)
+    inverted_fitness = [max_fitness - c.fitness + 1 for c in population]
+    total = sum(inverted_fitness)
+    if total == 0:
+        return random.choice(population)
+    probs = [f / total for f in inverted_fitness]
+    return random.choices(population, weights=probs, k=1)[0]
+
+
+def rank_selection(population: List[Chromosome]) -> Chromosome:
+    sorted_pop = sorted(population, key=lambda c: c.fitness)
+    n = len(sorted_pop)
+    ranks = list(range(n, 0, -1))
+    total = sum(ranks)
+    probs = [r / total for r in ranks]
+    return random.choices(sorted_pop, weights=probs, k=1)[0]
