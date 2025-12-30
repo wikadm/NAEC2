@@ -109,3 +109,60 @@ def rank_selection(population: List[Chromosome]) -> Chromosome:
     total = sum(ranks)
     probs = [r / total for r in ranks]
     return random.choices(sorted_pop, weights=probs, k=1)[0]
+
+###Crossover methods
+def order_crossover_ox(parent1: Chromosome, parent2: Chromosome) -> Tuple[Chromosome, Chromosome]:
+    size = len(parent1.genes)
+    point1, point2 = sorted(random.sample(range(size), 2))
+
+    def create_offspring(p1, p2):
+        offspring = [None] * size
+        for i in range(point1, point2 + 1):
+            offspring[i] = p1.genes[i]
+
+        gene_counts = {}
+        for gene in p2.genes:
+            gene_counts[gene] = gene_counts.get(gene, 0) + 1
+        for gene in offspring:
+            if gene is not None:
+                gene_counts[gene] -= 1
+
+        p2_idx = 0
+        for i in list(range(point2 + 1, size)) + list(range(0, point1)):
+            while gene_counts.get(p2.genes[p2_idx], 0) <= 0:
+                p2_idx += 1
+            offspring[i] = p2.genes[p2_idx]
+            gene_counts[p2.genes[p2_idx]] -= 1
+            p2_idx += 1
+        return Chromosome(offspring, p1.instance)
+
+    return create_offspring(parent1, parent2), create_offspring(parent2, parent1)
+
+
+def pmx_crossover(parent1: Chromosome, parent2: Chromosome) -> Tuple[Chromosome, Chromosome]:
+    size = len(parent1.genes)
+    point1, point2 = sorted(random.sample(range(size), 2))
+
+    def create_offspring(p1, p2):
+        offspring = [None] * size
+        for i in range(point1, point2 + 1):
+            offspring[i] = p1.genes[i]
+
+        gene_counts = {}
+        for gene in p2.genes:
+            gene_counts[gene] = gene_counts.get(gene, 0) + 1
+        for gene in offspring:
+            if gene is not None:
+                gene_counts[gene] -= 1
+
+        p2_idx = 0
+        for i in range(size):
+            if offspring[i] is None:
+                while gene_counts.get(p2.genes[p2_idx], 0) <= 0:
+                    p2_idx += 1
+                offspring[i] = p2.genes[p2_idx]
+                gene_counts[p2.genes[p2_idx]] -= 1
+                p2_idx += 1
+        return Chromosome(offspring, p1.instance)
+
+    return create_offspring(parent1, parent2), create_offspring(parent2, parent1)
