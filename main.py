@@ -166,3 +166,22 @@ def pmx_crossover(parent1: Chromosome, parent2: Chromosome) -> Tuple[Chromosome,
         return Chromosome(offspring, p1.instance)
 
     return create_offspring(parent1, parent2), create_offspring(parent2, parent1)
+###mutation methods
+def swap_mutation(chromosome: Chromosome, rate: float = 0.1) -> Chromosome:
+    if random.random() > rate:
+        return chromosome.copy()
+    genes = chromosome.genes.copy()
+    i, j = random.sample(range(len(genes)), 2)
+    genes[i], genes[j] = genes[j], genes[i]
+    return Chromosome(genes, chromosome.instance)
+
+
+def insertion_mutation(chromosome: Chromosome, rate: float = 0.1) -> Chromosome:
+    if random.random() > rate:
+        return chromosome.copy()
+    genes = chromosome.genes.copy()
+    i = random.randint(0, len(genes) - 1)
+    gene = genes.pop(i)
+    j = random.randint(0, len(genes))
+    genes.insert(j, gene)
+    return Chromosome(genes, chromosome.instance)
