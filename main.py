@@ -185,3 +185,95 @@ def insertion_mutation(chromosome: Chromosome, rate: float = 0.1) -> Chromosome:
     j = random.randint(0, len(genes))
     genes.insert(j, gene)
     return Chromosome(genes, chromosome.instance)
+####genetic algorithm
+class GeneticAlgorithm:
+    
+    SELECTION = {'tournament': tournament_selection, 'roulette': roulette_wheel_selection, 'rank': rank_selection}
+    CROSSOVER = {'ox': order_crossover_ox, 'pmx': pmx_crossover}
+    MUTATION = {'swap': swap_mutation, 'insertion': insertion_mutation}
+    
+    def __init__(self, instance: JSSPInstance, pop_size: int = 100,
+                 selection: str = 'tournament', crossover: str = 'ox', mutation: str = 'swap',
+                 crossover_rate: float = 0.8, mutation_rate: float = 0.1,
+                 elitism: int = 2, tournament_size: int = 3):
+        
+        self.instance = instance
+        self.pop_size = pop_size
+        self.selection = selection
+        self.crossover = crossover
+        self.mutation = mutation
+        self.crossover_rate = crossover_rate
+        self.mutation_rate = mutation_rate
+        self.elitism = elitism
+        self.tournament_size = tournament_size
+        
+        self._select = self.SELECTION[selection]
+        self._crossover = self.CROSSOVER[crossover]
+        self._mutate = self.MUTATION[mutation]
+        
+        self.history = {'generation': [], 'best': [], 'avg': [], 'worst': []}
+    
+    def run(self, max_gen: int = 300, stagnation: int = 50, verbose: bool = True) -> Tuple[Chromosome, Dict]:
+        population = [Chromosome.create_random(self.instance) for _ in range(self.pop_size)]
+        best_ever = min(population, key=lambda c: c.fitness)
+        stag_count = 0
+        
+        for gen in range(max_gen):
+            # Create new population
+            new_pop = []
+            sorted_pop = sorted(population, key=lambda c: c.fitness)
+            new_pop.extend([c.copy() for c in sorted_pop[:self.elitism]])
+            
+            while len(new_pop) < self.pop_size:
+                # Selection
+                if self.selection == 'tournament':
+                    p1 = self._select(population, self.tournament_size)
+                    p2 = self._select(population, self.tournament_size)
+                else:
+                    p1, p2 = self._select(population), self._select(population)
+                
+                # Crossover
+                if random.random() < self.crossover_rate:
+                    c1, c2 = self._crossover(p1, p2)
+                else:
+                    c1, c2 = p1.copy(), p2.copy()
+                
+                # Mutation
+                c1 = self._mutate(c1, self.mutation_rate)
+                c2 = self._mutate(c2, self.mutation_rate)
+                
+                if c1.is_valid():
+                    new_pop.append(c1)
+                if len(new_pop) < self.pop_size and c2.is_valid():
+                    new_pop.append(c2)
+            
+            population = new_pop[:self.pop_size]
+            
+            # Statistics
+            fitnesses = [c.fitness for c in population]
+            best_gen = min(population, key=lambda c: c.fitness)
+            
+            self.history['generation'].append(gen)
+            self.history['best'].append(min(fitnesses))
+            self.history['avg'].append(np.mean(fitnesses))
+            self.history['worst'].append(max(fitnesses))
+            
+            if best_gen.fitness < best_ever.fitness:
+                best_ever = best_gen.copy()
+                stag_count = 0
+            else:
+                stag_count += 1
+            
+            if verbose and gen % 20 == 0:
+                print(f"Gen {gen:4d}: Best={min(fitnesses)}, Avg={np.mean(fitnesses):.1f}, Best Ever={best_ever.fitness}")
+            
+            if stag_count >= stagnation:
+                if verbose:
+                    print(f"Stopping at generation {gen} (stagnation)")
+                break
+        
+        if verbose:
+            print(f"\nFinal Best Makespan: {best_ever.fitness}")
+        
+        return best_ever, self.history
+
