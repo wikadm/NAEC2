@@ -276,4 +276,68 @@ class GeneticAlgorithm:
             print(f"\nFinal Best Makespan: {best_ever.fitness}")
         
         return best_ever, self.history
+###visualization functions
+def plot_evolution(history: Dict, title: str = "GA Evolution", save_path: str = None):
+    plt.figure(figsize=(10, 5))
+    plt.plot(history['generation'], history['best'], label='Best', linewidth=2, color='green')
+    plt.plot(history['generation'], history['avg'], label='Average', linewidth=1.5, color='blue', alpha=0.7)
+    plt.plot(history['generation'], history['worst'], label='Worst', linewidth=1, color='red', alpha=0.5)
+    plt.xlabel('Generation')
+    plt.ylabel('Makespan')
+    plt.title(title)
+    plt.legend()
+    plt.grid(True, alpha=0.3)
+    plt.tight_layout()
+    if save_path:
+        plt.savefig(save_path, dpi=150)
+    plt.close()
 
+
+def plot_gantt(schedule: Dict, instance: JSSPInstance, title: str = "Schedule", save_path: str = None):
+    colors = plt.cm.Set3(np.linspace(0, 1, instance.num_jobs))
+    fig, ax = plt.subplots(figsize=(12, max(4, instance.num_machines * 0.6)))
+
+    for machine_id, tasks in schedule.items():
+        for task in tasks:
+            ax.barh(machine_id, task['duration'], left=task['start'], height=0.6,
+                   color=colors[task['job']], edgecolor='black', linewidth=0.5)
+            ax.text(task['start'] + task['duration']/2, machine_id, f"J{task['job']}",
+                   ha='center', va='center', fontsize=8, fontweight='bold')
+
+    ax.set_yticks(range(instance.num_machines))
+    ax.set_yticklabels([f'M{i}' for i in range(instance.num_machines)])
+    ax.set_xlabel('Time')
+    ax.set_title(title)
+    ax.grid(True, axis='x', alpha=0.3)
+    plt.tight_layout()
+    if save_path:
+        plt.savefig(save_path, dpi=150)
+    plt.close()
+
+
+def plot_comparison(results: List[Dict], title: str = "Configuration Comparison", save_path: str = None):
+    fig, axes = plt.subplots(1, 2, figsize=(12, 4))
+
+    for r in results:
+        label = f"{r['selection']}/{r['crossover']}/{r['mutation']}"
+        axes[0].plot(r['history']['generation'], r['history']['best'], label=label, linewidth=1.5)
+    axes[0].set_xlabel('Generation')
+    axes[0].set_ylabel('Best Makespan')
+    axes[0].set_title('Convergence')
+    axes[0].legend(fontsize=8)
+    axes[0].grid(True, alpha=0.3)
+
+    labels = [f"C{i+1}" for i in range(len(results))]
+    makespans = [r['best_fitness'] for r in results]
+    bars = axes[1].bar(labels, makespans, color=plt.cm.viridis(np.linspace(0.2, 0.8, len(results))))
+    axes[1].set_ylabel('Best Makespan')
+    axes[1].set_title('Final Results')
+    for bar, val in zip(bars, makespans):
+        axes[1].text(bar.get_x() + bar.get_width()/2, bar.get_height() + 1, str(val), ha='center', fontsize=10)
+    axes[1].grid(True, axis='y', alpha=0.3)
+
+    plt.suptitle(title)
+    plt.tight_layout()
+    if save_path:
+        plt.savefig(save_path, dpi=150)
+    plt.close()
