@@ -87,9 +87,9 @@ class Chromosome:
         return Chromosome(self.genes.copy(), self.instance)
 
 ######Selection Methods
-    def tournament_selection(population: List[Chromosome], tournament_size: int = 3) -> Chromosome:
-    tournament = random.sample(population, min(tournament_size, len(population)))
-    return min(tournament, key=lambda c: c.fitness)
+def tournament_selection(population: List[Chromosome], tournament_size: int = 3) -> Chromosome:
+        tournament = random.sample(population, min(tournament_size, len(population)))
+        return min(tournament, key=lambda c: c.fitness)
 
 
 def roulette_wheel_selection(population: List[Chromosome]) -> Chromosome:
@@ -341,3 +341,106 @@ def plot_comparison(results: List[Dict], title: str = "Configuration Comparison"
     if save_path:
         plt.savefig(save_path, dpi=150)
     plt.close()
+##########main
+def run_experiments():
+    """Run experiments with different GA configurations."""
+
+    random.seed(RANDOM_SEED)
+    np.random.seed(RANDOM_SEED)
+
+    # Create output directory
+    os.makedirs("results", exist_ok=True)
+
+    # Test instances
+    instances = [create_small_instance(), create_medium_instance(), create_large_instance()]
+
+    # GA configurations (6 different combinations)
+    configs = [
+        {'selection': 'tournament', 'crossover': 'ox', 'mutation': 'swap', 'mutation_rate': 0.15},
+        {'selection': 'tournament', 'crossover': 'pmx', 'mutation': 'insertion', 'mutation_rate': 0.15},
+        {'selection': 'roulette', 'crossover': 'ox', 'mutation': 'swap', 'mutation_rate': 0.10},
+        {'selection': 'rank', 'crossover': 'ox', 'mutation': 'insertion', 'mutation_rate': 0.12},
+        {'selection': 'tournament', 'crossover': 'ox', 'mutation': 'insertion', 'mutation_rate': 0.08},
+        {'selection': 'rank', 'crossover': 'pmx', 'mutation': 'swap', 'mutation_rate': 0.20},
+    ]
+
+    all_results = {}
+
+    for instance in instances:
+        print(f"\n{'='*60}")
+        print(f"Instance: {instance.name}")
+        print(f"Jobs: {instance.num_jobs}, Machines: {instance.num_machines}")
+        print(f"{'='*60}")
+
+        results = []
+
+        for i, cfg in enumerate(configs):
+            print(f"\nConfig {i+1}: {cfg['selection']}/{cfg['crossover']}/{cfg['mutation']}")
+
+            random.seed(RANDOM_SEED)
+            np.random.seed(RANDOM_SEED)
+
+            ga = GeneticAlgorithm(
+                instance, pop_size=100,
+                selection=cfg['selection'], crossover=cfg['crossover'], mutation=cfg['mutation'],
+                crossover_rate=0.85, mutation_rate=cfg['mutation_rate'],
+                elitism=2, tournament_size=5
+            )
+
+            best, history = ga.run(max_gen=300, stagnation=50, verbose=False)
+
+            results.append({
+                'config': i+1,
+                'selection': cfg['selection'],
+                'crossover': cfg['crossover'],
+                'mutation': cfg['mutation'],
+                'best_fitness': best.fitness,
+                'best_chromosome': best,
+                'history': history,
+                'generations': len(history['generation'])
+            })
+
+            print(f"  Best Makespan: {best.fitness}, Generations: {len(history['generation'])}")
+
+        # Find best result
+        best_result = min(results, key=lambda r: r['best_fitness'])
+
+        # Generate plots
+        plot_evolution(
+            best_result['history'],
+            f"GA Evolution - {instance.name}",
+            f"results/{instance.name}_evolution.png"
+        )
+
+        plot_gantt(
+            best_result['best_chromosome'].schedule,
+            instance,
+            f"Best Schedule - {instance.name} (Makespan: {best_result['best_fitness']})",
+            f"results/{instance.name}_gantt.png"
+        )
+
+        plot_comparison(
+            results,
+            f"Configuration Comparison - {instance.name}",
+            f"results/{instance.name}_comparison.png"
+        )
+
+        all_results[instance.name] = results
+
+        # Print summary table
+        print(f"\n{'Config':<10} {'Selection':<12} {'Crossover':<10} {'Mutation':<12} {'Makespan':<10} {'Gens':<8}")
+        print("-" * 62)
+        for r in results:
+            print(f"{r['config']:<10} {r['selection']:<12} {r['crossover']:<10} {r['mutation']:<12} {r['best_fitness']:<10} {r['generations']:<8}")
+        print(f"\nBest: {best_result['best_fitness']} (Config {best_result['config']})")
+
+    print(f"\n{'='*60}")
+    print("Results saved to 'results/' directory")
+    print(f"{'='*60}")
+
+    return all_results
+
+
+if __name__ == "__main__":
+    results = run_experiments()
+
