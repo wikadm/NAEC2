@@ -9,6 +9,10 @@ from typing import List, Tuple, Dict
 
 
 RANDOM_SEED = 42
+#add seeds for reproducibility
+random.seed(RANDOM_SEED)
+np.random.seed(RANDOM_SEED)
+
 #########JSSP instance and Chromosome Classes
 class JSSPInstance:
 #####Represents a Job Shop Scheduling Problem instance
@@ -17,6 +21,7 @@ class JSSPInstance:
         self.jobs = jobs
         self.name = name
         self.num_jobs = len(jobs)
+##Calculate max mchine ID to find out total machines
         self.num_machines = max(max(op[0] for op in job) for job in jobs) + 1
         self.num_operations = sum(len(job) for job in jobs)
 
@@ -33,14 +38,18 @@ class Chromosome:
 
     @classmethod
     def create_random(cls, instance: JSSPInstance) -> 'Chromosome':
+#random valid permutation of job ID
         genes = []
         for job_id, job in enumerate(instance.jobs):
+##add job_id n times
+##n is number of operations of that job
             genes.extend([job_id] * len(job))
         random.shuffle(genes)
         return cls(genes, instance)
 
     @property
     def fitness(self) -> int:
+##score of fitness by Lazy Evaluation and Property Decorator
         if self._fitness is None:
             self._fitness, self._schedule = self._calculate_makespan()
         return self._fitness
@@ -52,6 +61,7 @@ class Chromosome:
         return self._schedule
 
     def _calculate_makespan(self) -> Tuple[int, Dict]:
+##decodes chromosome into schedule
         job_op_index = [0] * self.instance.num_jobs
         job_end_times = [0] * self.instance.num_jobs
         machine_end_times = [0] * self.instance.num_machines
@@ -75,6 +85,8 @@ class Chromosome:
         return max(job_end_times), schedule
 
     def is_valid(self) -> bool:
+##validation of the chromosome
+##if every job appears as many times as it has operations
         job_counts = {}
         for gene in self.genes:
             job_counts[gene] = job_counts.get(gene, 0) + 1
@@ -87,12 +99,14 @@ class Chromosome:
         return Chromosome(self.genes.copy(), self.instance)
 
 ######Selection Methods
+##randomly picks k and return of best one
 def tournament_selection(population: List[Chromosome], tournament_size: int = 3) -> Chromosome:
         tournament = random.sample(population, min(tournament_size, len(population)))
         return min(tournament, key=lambda c: c.fitness)
 
 
 def roulette_wheel_selection(population: List[Chromosome]) -> Chromosome:
+##select based on probability proportional to fitness
     max_fitness = max(c.fitness for c in population)
     inverted_fitness = [max_fitness - c.fitness + 1 for c in population]
     total = sum(inverted_fitness)
@@ -103,6 +117,7 @@ def roulette_wheel_selection(population: List[Chromosome]) -> Chromosome:
 
 
 def rank_selection(population: List[Chromosome]) -> Chromosome:
+##rank selection
     sorted_pop = sorted(population, key=lambda c: c.fitness)
     n = len(sorted_pop)
     ranks = list(range(n, 0, -1))
@@ -111,6 +126,7 @@ def rank_selection(population: List[Chromosome]) -> Chromosome:
     return random.choices(sorted_pop, weights=probs, k=1)[0]
 
 ###Crossover methods
+#copy form parent 1, fills remaining spots of genes in Parent2
 def order_crossover_ox(parent1: Chromosome, parent2: Chromosome) -> Tuple[Chromosome, Chromosome]:
     size = len(parent1.genes)
     point1, point2 = sorted(random.sample(range(size), 2))
@@ -140,6 +156,7 @@ def order_crossover_ox(parent1: Chromosome, parent2: Chromosome) -> Tuple[Chromo
 
 
 def pmx_crossover(parent1: Chromosome, parent2: Chromosome) -> Tuple[Chromosome, Chromosome]:
+##maps genes between the cut points
     size = len(parent1.genes)
     point1, point2 = sorted(random.sample(range(size), 2))
 
@@ -167,6 +184,7 @@ def pmx_crossover(parent1: Chromosome, parent2: Chromosome) -> Tuple[Chromosome,
 
     return create_offspring(parent1, parent2), create_offspring(parent2, parent1)
 ###mutation methods
+#swap two genes
 def swap_mutation(chromosome: Chromosome, rate: float = 0.1) -> Chromosome:
     if random.random() > rate:
         return chromosome.copy()
@@ -177,6 +195,7 @@ def swap_mutation(chromosome: Chromosome, rate: float = 0.1) -> Chromosome:
 
 
 def insertion_mutation(chromosome: Chromosome, rate: float = 0.1) -> Chromosome:
+#insert gene into a new random position
     if random.random() > rate:
         return chromosome.copy()
     genes = chromosome.genes.copy()
@@ -223,7 +242,7 @@ class GeneticAlgorithm:
             new_pop = []
             sorted_pop = sorted(population, key=lambda c: c.fitness)
             new_pop.extend([c.copy() for c in sorted_pop[:self.elitism]])
-            
+            # reprodiction loop 
             while len(new_pop) < self.pop_size:
                 # Selection
                 if self.selection == 'tournament':
@@ -294,6 +313,7 @@ def plot_evolution(history: Dict, title: str = "GA Evolution", save_path: str = 
 
 
 def plot_gantt(schedule: Dict, instance: JSSPInstance, title: str = "Schedule", save_path: str = None):
+#draw a gantt chart
     colors = plt.cm.Set3(np.linspace(0, 1, instance.num_jobs))
     fig, ax = plt.subplots(figsize=(12, max(4, instance.num_machines * 0.6)))
 
@@ -390,7 +410,7 @@ def create_large_instance():
 
 ##########main
 def run_experiments():
-    """Run experiments with different GA configurations."""
+    ##Run experiments with different GA configurations.
 
     random.seed(RANDOM_SEED)
     np.random.seed(RANDOM_SEED)
@@ -401,7 +421,7 @@ def run_experiments():
     # Test instances
     instances = [create_small_instance(), create_medium_instance(), create_large_instance()]
 
-    # GA configurations (6 different combinations)
+    # GA configurations
     configs = [
         {'selection': 'tournament', 'crossover': 'ox', 'mutation': 'swap', 'mutation_rate': 0.15},
         {'selection': 'tournament', 'crossover': 'pmx', 'mutation': 'insertion', 'mutation_rate': 0.15},
